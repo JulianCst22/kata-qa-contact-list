@@ -1,0 +1,1078 @@
+{
+  "info": {
+    "_postman_id": "e6e5d4c4-7820-4d63-960a-41180b3a5cf4",
+    "name": "Kata QA - Contact List API",
+    "description": "Casos de prueba de API (API-01 a API-20) del plan de pruebas de la Kata Junior QA.\n\nSe ejecutan en orden con el Collection Runner o con Newman: cada petición guarda en variables de la colección lo que necesita la siguiente (email, token, id del contacto).\n\nDocumentación de la API: https://documenter.getpostman.com/view/4012288/TzK2bEa8",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Usuarios",
+      "description": "Registro de usuarios (positivo y negativos).",
+      "item": [
+        {
+          "name": "API-01 Crear un usuario nuevo",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Email único en cada ejecución: la base de datos de la app se reinicia seguido",
+                  "const unique = Date.now() + '' + Math.floor(Math.random() * 10000);",
+                  "pm.collectionVariables.set('email', `julian.${unique}@test.com`);",
+                  "pm.collectionVariables.set('contactEmail', `juan.${unique}@test.com`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si el servidor falló (ver script de la colección), no se validan los datos",
+                  "if (pm.variables.get('_ambienteFalla') !== 'si') {",
+                  "  pm.test(\"Código 201 (creado)\", () => pm.response.to.have.status(201));",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"La respuesta incluye un token\", () => pm.expect(body.token).to.be.a('string').and.not.empty);",
+                  "  pm.test(\"La respuesta incluye el email del usuario\", () => pm.expect(body.user.email).to.eql(pm.collectionVariables.get('email')));",
+                  "  pm.collectionVariables.set('token', body.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Julian\",\n  \"lastName\": \"QA\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "API-02 Crear usuario con email ya registrado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si el servidor falló (ver script de la colección), no se validan los datos",
+                  "if (pm.variables.get('_ambienteFalla') !== 'si') {",
+                  "  pm.test(\"Código 400 (solicitud inválida)\", () => pm.response.to.have.status(400));",
+                  "  pm.test(\"Mensaje: email en uso\", () => pm.expect(pm.response.json().message).to.include('Email address is already in use'));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Otra\",\n  \"lastName\": \"Persona\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "API-03 Crear usuario sin campos obligatorios",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si el servidor falló (ver script de la colección), no se validan los datos",
+                  "if (pm.variables.get('_ambienteFalla') !== 'si') {",
+                  "  pm.test(\"Código 400 (solicitud inválida)\", () => pm.response.to.have.status(400));",
+                  "  pm.test(\"Mensaje de validación\", () => pm.expect(pm.response.json().message).to.include('User validation failed'));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Login y perfil",
+      "description": "Login, perfil y seguridad básica del token.",
+      "item": [
+        {
+          "name": "API-04 Login con credenciales válidas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si el servidor falló (ver script de la colección), no se validan los datos",
+                  "if (pm.variables.get('_ambienteFalla') !== 'si') {",
+                  "  pm.test(\"Código 200 (OK)\", () => pm.response.to.have.status(200));",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"La respuesta incluye un token\", () => pm.expect(body.token).to.be.a('string').and.not.empty);",
+                  "  pm.collectionVariables.set('token', body.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "API-05 Login con contraseña incorrecta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si el servidor falló (ver script de la colección), no se validan los datos",
+                  "if (pm.variables.get('_ambienteFalla') !== 'si') {",
+                  "  pm.test(\"Código 401 (no autorizado)\", () => pm.response.to.have.status(401));",
+                  "  pm.test(\"No se entrega token\", () => pm.expect(pm.response.text()).to.not.include('token'));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"clave-mala\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "API-06 Consultar el perfil del usuario",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si el servidor falló (ver script de la colección), no se validan los datos",
+                  "if (pm.variables.get('_ambienteFalla') !== 'si') {",
+                  "  pm.test(\"Código 200 (OK)\", () => pm.response.to.have.status(200));",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"El perfil tiene el email del usuario\", () => pm.expect(body.email).to.eql(pm.collectionVariables.get('email')));",
+                  "  pm.test(\"La respuesta no incluye la contraseña\", () => pm.expect(body).to.not.have.property('password'));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "me"
+              ]
+            }
+          }
+        },
+        {
+          "name": "API-07 Consultar el perfil sin token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si el servidor falló (ver script de la colección), no se validan los datos",
+                  "if (pm.variables.get('_ambienteFalla') !== 'si') {",
+                  "  pm.test(\"Código 401 (no autorizado)\", () => pm.response.to.have.status(401));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "me"
+              ]
+            }
+          }
+        },
+        {
+          "name": "API-08 Actualizar datos del usuario",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si el servidor falló (ver script de la colección), no se validan los datos",
+                  "if (pm.variables.get('_ambienteFalla') !== 'si') {",
+                  "  pm.test(\"Código 200 (OK)\", () => pm.response.to.have.status(200));",
+                  "  pm.test(\"El nombre quedó actualizado\", () => pm.expect(pm.response.json().firstName).to.eql('NombreNuevo'));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "me"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"NombreNuevo\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Contactos",
+      "description": "CRUD de contactos y validaciones de campos.",
+      "item": [
+        {
+          "name": "API-10 Crear un contacto válido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si el servidor falló (ver script de la colección), no se validan los datos",
+                  "if (pm.variables.get('_ambienteFalla') !== 'si') {",
+                  "  pm.test(\"Código 201 (creado)\", () => pm.response.to.have.status(201));",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"La respuesta incluye el id del contacto\", () => pm.expect(body._id).to.be.a('string').and.not.empty);",
+                  "  pm.collectionVariables.set('contactId', body._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Juan\",\n  \"lastName\": \"Perez\",\n  \"birthdate\": \"1990-05-20\",\n  \"email\": \"{{contactEmail}}\",\n  \"phone\": \"3001234567\",\n  \"street1\": \"Calle 10 20-30\",\n  \"street2\": \"Apto 401\",\n  \"city\": \"Bogota\",\n  \"stateProvince\": \"Cundinamarca\",\n  \"postalCode\": \"110111\",\n  \"country\": \"Colombia\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "API-11 Crear contacto sin firstName",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si el servidor falló (ver script de la colección), no se validan los datos",
+                  "if (pm.variables.get('_ambienteFalla') !== 'si') {",
+                  "  pm.test(\"Código 400 (solicitud inválida)\", () => pm.response.to.have.status(400));",
+                  "  pm.test(\"Mensaje indica que firstName es obligatorio\", () => pm.expect(pm.response.json().message).to.include('firstName'));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lastName\": \"Perez\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "API-12 Crear contacto con email inválido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si el servidor falló (ver script de la colección), no se validan los datos",
+                  "if (pm.variables.get('_ambienteFalla') !== 'si') {",
+                  "  pm.test(\"Código 400 (solicitud inválida)\", () => pm.response.to.have.status(400));",
+                  "  pm.test(\"Mensaje de email inválido\", () => pm.expect(pm.response.json().message).to.include('Email is invalid'));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Juan\",\n  \"lastName\": \"Perez\",\n  \"email\": \"correo-sin-arroba\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "API-13 Crear contacto con fecha inválida",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si el servidor falló (ver script de la colección), no se validan los datos",
+                  "if (pm.variables.get('_ambienteFalla') !== 'si') {",
+                  "  pm.test(\"Código 400 (solicitud inválida)\", () => pm.response.to.have.status(400));",
+                  "  pm.test(\"Mensaje de fecha inválida\", () => pm.expect(pm.response.json().message).to.include('Birthdate is invalid'));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Juan\",\n  \"lastName\": \"Perez\",\n  \"birthdate\": \"20/05/1990\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "API-14 Crear contacto sin token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si el servidor falló (ver script de la colección), no se validan los datos",
+                  "if (pm.variables.get('_ambienteFalla') !== 'si') {",
+                  "  pm.test(\"Código 401 (no autorizado)\", () => pm.response.to.have.status(401));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Juan\",\n  \"lastName\": \"Perez\",\n  \"birthdate\": \"1990-05-20\",\n  \"email\": \"{{contactEmail}}\",\n  \"phone\": \"3001234567\",\n  \"street1\": \"Calle 10 20-30\",\n  \"street2\": \"Apto 401\",\n  \"city\": \"Bogota\",\n  \"stateProvince\": \"Cundinamarca\",\n  \"postalCode\": \"110111\",\n  \"country\": \"Colombia\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "API-15 Listar los contactos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si el servidor falló (ver script de la colección), no se validan los datos",
+                  "if (pm.variables.get('_ambienteFalla') !== 'si') {",
+                  "  pm.test(\"Código 200 (OK)\", () => pm.response.to.have.status(200));",
+                  "  const ids = pm.response.json().map(c => c._id);",
+                  "  pm.test(\"La lista incluye el contacto creado\", () => pm.expect(ids).to.include(pm.collectionVariables.get('contactId')));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts"
+              ]
+            }
+          }
+        },
+        {
+          "name": "API-16 Consultar un contacto por id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si el servidor falló (ver script de la colección), no se validan los datos",
+                  "if (pm.variables.get('_ambienteFalla') !== 'si') {",
+                  "  pm.test(\"Código 200 (OK)\", () => pm.response.to.have.status(200));",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Los datos coinciden con el contacto creado\", () => {",
+                  "    pm.expect(body.firstName).to.eql('Juan');",
+                  "    pm.expect(body.lastName).to.eql('Perez');",
+                  "    pm.expect(body.email).to.eql(pm.collectionVariables.get('contactEmail'));",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts/{{contactId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts",
+                "{{contactId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "API-17 Actualizar un contacto completo (PUT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si el servidor falló (ver script de la colección), no se validan los datos",
+                  "if (pm.variables.get('_ambienteFalla') !== 'si') {",
+                  "  pm.test(\"Código 200 (OK)\", () => pm.response.to.have.status(200));",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Nombre y apellido actualizados\", () => {",
+                  "    pm.expect(body.firstName).to.eql('Ana');",
+                  "    pm.expect(body.lastName).to.eql('Gomez');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts/{{contactId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts",
+                "{{contactId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Ana\",\n  \"lastName\": \"Gomez\",\n  \"birthdate\": \"1990-05-20\",\n  \"email\": \"{{contactEmail}}\",\n  \"phone\": \"3001234567\",\n  \"street1\": \"Calle 10 20-30\",\n  \"street2\": \"Apto 401\",\n  \"city\": \"Bogota\",\n  \"stateProvince\": \"Cundinamarca\",\n  \"postalCode\": \"110111\",\n  \"country\": \"Colombia\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "API-18 Actualizar un solo campo del contacto (PATCH)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si el servidor falló (ver script de la colección), no se validan los datos",
+                  "if (pm.variables.get('_ambienteFalla') !== 'si') {",
+                  "  pm.test(\"Código 200 (OK)\", () => pm.response.to.have.status(200));",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Cambió solo el nombre\", () => pm.expect(body.firstName).to.eql('Nuevo'));",
+                  "  pm.test(\"Los demás datos no cambiaron\", () => {",
+                  "    pm.expect(body.lastName).to.eql('Gomez');",
+                  "    pm.expect(body.email).to.eql(pm.collectionVariables.get('contactEmail'));",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts/{{contactId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts",
+                "{{contactId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Nuevo\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "API-19 Eliminar un contacto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si el servidor falló (ver script de la colección), no se validan los datos",
+                  "if (pm.variables.get('_ambienteFalla') !== 'si') {",
+                  "  pm.test(\"Código 200 (OK)\", () => pm.response.to.have.status(200));",
+                  "  // Verificación extra: el contacto ya no debe existir",
+                  "  pm.sendRequest({",
+                  "    url: pm.variables.get('baseUrl') + '/contacts/' + pm.collectionVariables.get('contactId'),",
+                  "    method: 'GET',",
+                  "    header: { Authorization: 'Bearer ' + pm.collectionVariables.get('token') }",
+                  "  }, (err, res) => {",
+                  "    pm.test(\"Después de eliminar, el contacto responde 404\", () => {",
+                  "      pm.expect(err).to.be.null;",
+                  "      pm.expect(res.code).to.eql(404);",
+                  "    });",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts/{{contactId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts",
+                "{{contactId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Cierre de sesión y limpieza",
+      "description": "Logout y eliminación del usuario de prueba.",
+      "item": [
+        {
+          "name": "API-09 Cerrar sesión invalida el token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si el servidor falló (ver script de la colección), no se validan los datos",
+                  "if (pm.variables.get('_ambienteFalla') !== 'si') {",
+                  "  pm.test(\"Código 200 (OK)\", () => pm.response.to.have.status(200));",
+                  "  // Verificación extra: el token usado ya no debe servir",
+                  "  pm.sendRequest({",
+                  "    url: pm.variables.get('baseUrl') + '/users/me',",
+                  "    method: 'GET',",
+                  "    header: { Authorization: 'Bearer ' + pm.collectionVariables.get('token') }",
+                  "  }, (err, res) => {",
+                  "    pm.test(\"Después del logout, el token responde 401\", () => {",
+                  "      pm.expect(err).to.be.null;",
+                  "      pm.expect(res.code).to.eql(401);",
+                  "    });",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "logout"
+              ]
+            }
+          }
+        },
+        {
+          "name": "API-20 Eliminar el usuario",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// El logout anterior invalidó el token: se inicia sesión de nuevo para obtener uno nuevo",
+                  "pm.sendRequest({",
+                  "  url: pm.variables.get('baseUrl') + '/users/login',",
+                  "  method: 'POST',",
+                  "  header: { 'Content-Type': 'application/json' },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({",
+                  "    email: pm.collectionVariables.get('email'),",
+                  "    password: pm.collectionVariables.get('password')",
+                  "  }) }",
+                  "}, (err, res) => {",
+                  "  if (!err && res.code === 200) pm.collectionVariables.set('token', res.json().token);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si el servidor falló (ver script de la colección), no se validan los datos",
+                  "if (pm.variables.get('_ambienteFalla') !== 'si') {",
+                  "  pm.test(\"Código 200 (OK)\", () => pm.response.to.have.status(200));",
+                  "  // Verificación extra: el usuario eliminado ya no puede iniciar sesión",
+                  "  pm.sendRequest({",
+                  "    url: pm.variables.get('baseUrl') + '/users/login',",
+                  "    method: 'POST',",
+                  "    header: { 'Content-Type': 'application/json' },",
+                  "    body: { mode: 'raw', raw: JSON.stringify({",
+                  "      email: pm.collectionVariables.get('email'),",
+                  "      password: pm.collectionVariables.get('password')",
+                  "    }) }",
+                  "  }, (err, res) => {",
+                  "    pm.test(\"El usuario eliminado ya no puede iniciar sesión (401)\", () => {",
+                  "      pm.expect(err).to.be.null;",
+                  "      pm.expect(res.code).to.eql(401);",
+                  "    });",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "me"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// DIAGNÓSTICO DEL AMBIENTE: corre después de CADA petición, antes de sus validaciones.",
+          "// Si el servidor no respondió o respondió 5xx, la falla es del ambiente y no un bug.",
+          "const code = pm.response ? pm.response.code : undefined;",
+          "if (typeof code !== 'number') {",
+          "  pm.variables.set('_ambienteFalla', 'si');",
+          "  pm.test('⚠️ AMBIENTE: el servidor no respondió a tiempo (no es un bug de la app)', () => {",
+          "    throw new Error('Sin respuesta del servidor. Espera unos minutos y vuelve a ejecutar.');",
+          "  });",
+          "} else if (code >= 500) {",
+          "  pm.variables.set('_ambienteFalla', 'si');",
+          "  pm.test(`⚠️ AMBIENTE: el servidor respondió ${code} (no es un bug de la app)`, () => {",
+          "    throw new Error(`Servidor no disponible (${code}). Espera unos minutos y vuelve a ejecutar.`);",
+          "  });",
+          "  if (code === 503) {",
+          "    console.log('⚠️  FALLA DEL AMBIENTE: la app respondió 503 (servidor caído). Se detiene la ejecución: espera unos minutos y vuelve a ejecutar.');",
+          "    postman.setNextRequest(null);",
+          "  }",
+          "} else {",
+          "  pm.variables.set('_ambienteFalla', 'no');",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://thinking-tester-contact-list.herokuapp.com"
+    },
+    {
+      "key": "password",
+      "value": "Clave12345"
+    },
+    {
+      "key": "email",
+      "value": ""
+    },
+    {
+      "key": "contactEmail",
+      "value": ""
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "contactId",
+      "value": ""
+    }
+  ]
+}

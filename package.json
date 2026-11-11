@@ -1,0 +1,23 @@
+{
+  "name": "kata-qa-contact-list",
+  "version": "1.0.0",
+  "description": "Automatización de pruebas de regresión (UI + API) para Contact List App con Playwright, Gherkin y Page Object Model",
+  "type": "module",
+  "scripts": {
+    "verificar": "node -e \"import('./diagnostico/verificar-ambiente.js').then(m => m.default())\"",
+    "test": "bddgen && playwright test",
+    "test:ui": "bddgen && playwright test --grep @ui",
+    "test:api": "bddgen && playwright test --grep @api",
+    "test:smoke": "bddgen && playwright test --grep @smoke",
+    "test:headed": "bddgen && playwright test --grep @ui --headed --workers=1",
+    "test:visual": "bddgen && playwright test --ui",
+    "report": "playwright show-report",
+    "test:postman": "newman run postman/kata-qa-contact-list.postman_collection.json --timeout-request 60000 --delay-request 300 -r cli,htmlextra,json --reporter-htmlextra-export postman/reporte-postman.html --reporter-json-export postman/resultado-postman.json --reporter-htmlextra-title \"Kata QA - Reporte Postman (API)\""
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.0",
+    "newman": "6.2.3",
+    "newman-reporter-htmlextra": "1.23.1",
+    "playwright-bdd": "9.2.1"
+  }
+}
